@@ -1,0 +1,75 @@
+etcd:
+  version: 3.2.9
+  # https://discovery.etcd.io/new?size=3
+  name: dev
+  discovery: https://discovery.etcd.io/
+  advertise_client_urls: http://{PRIVATE_IPV4}:2379
+  initial_advertise_peer_urls: http://{PRIVATE_IPV4}:2380
+  listen_client_urls: http://{PRIVATE_IPV4}:2379,http://127.0.0.1:2379
+  listen_peer_urls: http://{PRIVATE_IPV4}:2380
+
+systemd:
+  units:
+
+    - name: docker.service
+      enabled: true
+
+    - name: gitlab-runner.service
+      enabled:  true
+      contents: |
+        [Unit]
+        Description=Gitlab Runner
+        After=docker.service
+        Requires=docker.service
+
+        [Service]
+        TimeoutStartSec=0
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull gitlab/gitlab-runner:latest
+        ExecStart=/usr/bin/docker run \
+  				-v /srv/gitlab-runner/config:/etc/gitlab-runner \
+    			-v /var/run/docker.sock:/var/run/docker.sock \
+      	gitlab/gitlab-runner:latest
+        ExecStop=/usr/bin/docker stop gitlab-runner
+
+        [Install]
+        WantedBy=multi-user.target
+
+storage:
+  files:
+
+    - path: /home/core/.bash_profile
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          alias l="ls -alF"
+          alias ..="cd .."
+          alias ss="systemctl status"
+          alias sr="sudo systemctl restart"
+          alias jl="journalctl -f -u"
+
+    - path: /root/.bash_profile
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          alias l="ls -alF"
+          alias ..="cd .."
+          alias ss="systemctl status"
+          alias sr="sudo systemctl restart"
+          alias jl="journalctl -f -u"
+
+    - path: "/home/core/.toolboxrc"
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          TOOLBOX_DOCKER_IMAGE=debian
+          TOOLBOX_DOCKER_TAG=jessie
+          TOOLBOX_USER=root
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-rsa removed-here info@frapsoft.com

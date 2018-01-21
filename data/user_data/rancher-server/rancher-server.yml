@@ -1,0 +1,88 @@
+etcd:
+  version: 3.2.9
+  # https://discovery.etcd.io/new?size=3
+  discovery: https://discovery.etcd.io/token-here
+  advertise_client_urls: http://{PRIVATE_IPV4}:2379
+  initial_advertise_peer_urls: http://{PRIVATE_IPV4}:2380
+  listen_client_urls: http://{PRIVATE_IPV4}:2379,http://127.0.0.1:2379
+  listen_peer_urls: http://{PRIVATE_IPV4}:2380
+
+systemd:
+  units:
+
+    - name: docker.service
+      enabled: true
+
+    - name: rancher-server.service
+      enabled:  true
+      contents: |
+        [Unit]
+        Description=Rancher Server
+        After=coreos-metadata.service
+        Requires=coreos-metadata.service
+        After=docker.service
+        Requires=docker.service
+
+        [Service]
+        EnvironmentFile=/run/metadata/coreos
+        TimeoutStartSec=0
+        Restart=always
+        ExecStartPre=/usr/bin/docker pull rancher/server:stable
+        ExecStart=/usr/bin/docker run \
+          --rm \
+          --restart=unless-stopped \
+          --name rancher-server \
+          -p 8080:8080 \
+          -p ${COREOS_EC2_IPV4_LOCAL}:9345:9345 \
+          -e CATTLE_DB_CATTLE_MYSQL_HOST="${MYSQL_HOST}" \
+          -e CATTLE_DB_CATTLE_MYSQL_PORT=3306 \
+          -e CATTLE_DB_CATTLE_MYSQL_NAME"${MYSQL_NAME" \
+          -e CATTLE_DB_CATTLE_USERNAME="${MYSQL_USER}" \
+          -e CATTLE_DB_CATTLE_PASSWORD="${MYSQL_PASS}" \
+          rancher/server:stable \
+          --advertise-address ${COREOS_EC2_IPV4_LOCAL}
+        ExecStop=/usr/bin/docker stop rancher-server
+
+        [Install]
+        WantedBy=multi-user.target
+
+
+storage:
+  files:
+
+    - path: /home/core/.bash_profile
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          alias l="ls -alF"
+          alias ..="cd .."
+          alias ss="systemctl status"
+          alias sr="sudo systemctl restart"
+          alias jl="journalctl -f -u"
+
+    - path: /root/.bash_profile
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          alias l="ls -alF"
+          alias ..="cd .."
+          alias ss="systemctl status"
+          alias sr="sudo systemctl restart"
+          alias jl="journalctl -f -u"
+
+    - path: "/home/core/.toolboxrc"
+      filesystem: root
+      mode: 0644
+      contents:
+        inline: |
+          TOOLBOX_DOCKER_IMAGE=debian
+          TOOLBOX_DOCKER_TAG=jessie
+          TOOLBOX_USER=root
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-rsa my-key-here info@frapsoft.com
+

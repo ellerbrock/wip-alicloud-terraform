@@ -1,0 +1,7 @@
+.terraform
+secrets.auto.tfvars
+*.old
+*.log
+*.next
+terraform.tfstate*
+data/ssh/*

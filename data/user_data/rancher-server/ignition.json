@@ -1,0 +1,78 @@
+{
+  "ignition": {
+    "config": {},
+    "timeouts": {},
+    "version": "2.1.0"
+  },
+  "networkd": {},
+  "passwd": {
+    "users": [
+      {
+        "name": "core",
+        "sshAuthorizedKeys": [
+          "ssh-rsa my-key-here info@frapsoft.com"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "files": [
+      {
+        "filesystem": "root",
+        "group": {},
+        "path": "/home/core/.bash_profile",
+        "user": {},
+        "contents": {
+          "source": "data:,alias%20l%3D%22ls%20-alF%22%0Aalias%20..%3D%22cd%20..%22%0Aalias%20ss%3D%22systemctl%20status%22%0Aalias%20sr%3D%22sudo%20systemctl%20restart%22%0Aalias%20jl%3D%22journalctl%20-f%20-u%22%0A",
+          "verification": {}
+        },
+        "mode": 420
+      },
+      {
+        "filesystem": "root",
+        "group": {},
+        "path": "/root/.bash_profile",
+        "user": {},
+        "contents": {
+          "source": "data:,alias%20l%3D%22ls%20-alF%22%0Aalias%20..%3D%22cd%20..%22%0Aalias%20ss%3D%22systemctl%20status%22%0Aalias%20sr%3D%22sudo%20systemctl%20restart%22%0Aalias%20jl%3D%22journalctl%20-f%20-u%22%0A",
+          "verification": {}
+        },
+        "mode": 420
+      },
+      {
+        "filesystem": "root",
+        "group": {},
+        "path": "/home/core/.toolboxrc",
+        "user": {},
+        "contents": {
+          "source": "data:,TOOLBOX_DOCKER_IMAGE%3Ddebian%0ATOOLBOX_DOCKER_TAG%3Djessie%0ATOOLBOX_USER%3Droot%0A",
+          "verification": {}
+        },
+        "mode": 420
+      }
+    ]
+  },
+  "systemd": {
+    "units": [
+      {
+        "dropins": [
+          {
+            "contents": "[Unit]\nRequires=coreos-metadata.service\nAfter=coreos-metadata.service\n\n[Service]\nEnvironmentFile=/run/metadata/coreos\nEnvironment=\"ETCD_IMAGE_TAG=v3.2.9\"\nExecStart=\nExecStart=/usr/lib/coreos/etcd-wrapper $ETCD_OPTS \\\n  --listen-peer-urls=\"http://${COREOS_EC2_IPV4_LOCAL}:2380\" \\\n  --listen-client-urls=\"http://${COREOS_EC2_IPV4_LOCAL}:2379,http://127.0.0.1:2379\" \\\n  --initial-advertise-peer-urls=\"http://${COREOS_EC2_IPV4_LOCAL}:2380\" \\\n  --advertise-client-urls=\"http://${COREOS_EC2_IPV4_LOCAL}:2379\" \\\n  --discovery=\"https://discovery.etcd.io/token-here\"",
+            "name": "20-clct-etcd-member.conf"
+          }
+        ],
+        "enable": true,
+        "name": "etcd-member.service"
+      },
+      {
+        "enabled": true,
+        "name": "docker.service"
+      },
+      {
+        "contents": "[Unit]\nDescription=Rancher Server\nAfter=coreos-metadata.service\nRequires=coreos-metadata.service\nAfter=docker.service\nRequires=docker.service\n\n[Service]\nEnvironmentFile=/run/metadata/coreos\nTimeoutStartSec=0\nRestart=always\nExecStartPre=/usr/bin/docker pull rancher/server:stable\nExecStart=/usr/bin/docker run \\\n  --rm \\\n  --restart=unless-stopped \\\n  --name rancher-server \\\n  -p 8080:8080 \\\n  -p ${COREOS_EC2_IPV4_LOCAL}:9345:9345 \\\n  -e CATTLE_DB_CATTLE_MYSQL_HOST=\"${MYSQL_HOST}\" \\\n  -e CATTLE_DB_CATTLE_MYSQL_PORT=3306 \\\n  -e CATTLE_DB_CATTLE_MYSQL_NAME\"${MYSQL_NAME\" \\\n  -e CATTLE_DB_CATTLE_USERNAME=\"${MYSQL_USER}\" \\\n  -e CATTLE_DB_CATTLE_PASSWORD=\"${MYSQL_PASS}\" \\\n  rancher/server:stable \\\n  --advertise-address ${COREOS_EC2_IPV4_LOCAL}\nExecStop=/usr/bin/docker stop rancher-server\n\n[Install]\nWantedBy=multi-user.target\n",
+        "enabled": true,
+        "name": "rancher-server.service"
+      }
+    ]
+  }
+}
